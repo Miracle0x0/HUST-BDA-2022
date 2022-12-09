@@ -190,7 +190,7 @@ def save_Lk(filename: str, support_items: dict):
     for si in support_items:
         f_write.write('{},\t{}\n'.format(list(si), support_items[si]))
     f_write.write('total: {}'.format(len(support_items)))
-    print("{} Done.\n".format(filename))
+    print("{} Done.".format(filename))
 
 
 def save_rule(filename: str, rule_list: list):
