@@ -10,12 +10,7 @@
 
 import os
 import threading
-
-SRC_DIR = os.path.dirname(__file__)  # 代码文件目录
-BASE_DIR = os.path.dirname(SRC_DIR)  # 项目根目录
-DATA_DIR = os.path.join(BASE_DIR, 'data')  # 数据文件目录
-TMP_DIR = os.path.join(BASE_DIR, 'tmp')  # 临时文件目录
-RES_DIR = os.path.join(BASE_DIR, 'res')  # 结果文件目录
+from init import *
 
 
 def generate_subdict(file_name: str, sub_dict: dict) -> None:
@@ -35,7 +30,7 @@ def generate_subdict(file_name: str, sub_dict: dict) -> None:
 def generate_result():
     """生成结果，保存在 res 目录下的 result 文件中
     """
-    f_write = open(os.path.join(RES_DIR, 'result'), 'w')
+    f_write = open(os.path.join(RES_DIR, 'result.csv'), 'w')
 
     sub_dict1 = {}
     sub_dict2 = {}

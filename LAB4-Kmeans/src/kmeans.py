@@ -11,7 +11,6 @@
 import os
 import csv
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 # ? 画图字体设置
@@ -85,7 +84,7 @@ def get_acc(process_mindata: np.mat, sample_num: int, k: int = 3) -> float:
     Args:
         process_mindata (np.mat): 数值矩阵
         sample_num (int): 样本数量
-        k (int, optional): 聚类中心数量. Defaults to 3.
+        k (int, optional): 聚类中心数量. 默认为 3.
 
     Returns:
         float: 准确率
@@ -98,7 +97,7 @@ def get_acc(process_mindata: np.mat, sample_num: int, k: int = 3) -> float:
         idx2 = int(process_mindata[i, 1]) - 1
         idx1 = 0 if i < 60 else 1 if i < 130 else 2
         clusters[idx1][idx2] += 1
-    acc = np.sum(np.max(clusters, axis=0))
+    acc = np.sum(np.max(clusters, axis=0)).squeeze()
     acc /= sample_num
     print("acc: ", acc)
     return acc
@@ -109,7 +108,7 @@ def rand_center(data: np.ndarray, k: int = 3) -> np.ndarray:
 
     Args:
         data (np.ndarray): 数据集
-        k (int, optional): 聚类中心数量. Defaults to 3.
+        k (int, optional): 聚类中心数量. 默认值为 3.
 
     Returns:
         np.ndarray: 随机聚类中心

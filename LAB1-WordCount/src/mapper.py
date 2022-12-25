@@ -8,14 +8,10 @@
 # @Description: 实现 map 功能
 """
 
-import os
 import threading
 import time
+from init import *
 
-SRC_DIR = os.path.dirname(__file__)  # 代码文件目录
-BASE_DIR = os.path.dirname(SRC_DIR)  # 项目根目录
-DATA_DIR = os.path.join(BASE_DIR, 'data')  # 数据文件目录
-TMP_DIR = os.path.join(BASE_DIR, 'tmp')  # 临时文件目录
 MAP_NODE_COUNT = 9  # map 节点个数
 
 # 线程池 (map)
@@ -88,14 +84,13 @@ class Mapper(threading.Thread):
         self.lock = threading.Lock()
 
     def create_map(self, idx: int):
-        print("map thread %d start!" % idx)
+        # print("map thread %d start!" % idx)
         map_thread = create_thread(idx)
         map_thread.start()
         map_thread.join()
         # * 发送消息，'mapX' 已就绪 (X = 1, 2, ..., 9)
-        # self.map_queue.put('map' + str(idx))
         self.map_queue.put(str(idx))
-        print("map thread %d finish!" % idx)
+        # print("map thread %d finish!" % idx)
 
     def run(self):
         while self.cur_node_count < self.map_node_count:
@@ -110,16 +105,3 @@ class Mapper(threading.Thread):
         for i in range(self.map_node_count):
             self.map_thread_list[i].join()
         print("map threads all finish.")
-
-
-if __name__ == "__main__":
-    for i in range(1, MAP_NODE_COUNT + 1):
-        map_thread_pool.append(create_thread(i))
-
-    start_time = time.perf_counter()
-
-    for thread in map_thread_pool:
-        thread.start()
-
-    for i in range(1, MAP_NODE_COUNT + 1):
-        join_thread(i)

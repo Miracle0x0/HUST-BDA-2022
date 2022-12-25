@@ -9,6 +9,8 @@
 """
 
 import os
+
+import numpy as np
 import pandas as pd
 
 # ? 文件目录设置
@@ -31,8 +33,13 @@ def get_filename(filename: str) -> str:
     return os.path.join(DATA_DIR, filename)
 
 
-def get_utility_mat():
-    # ? 获取用户-电影评分效应矩阵
+def get_utility_mat() -> np.ndarray:
+    """计算效用矩阵
+
+    Returns:
+        np.ndarray: 效用矩阵
+    """
+    # ? 获取用户-电影评分效用矩阵
     train_file = open(get_filename('train_set.csv'), 'r', encoding='utf-8')
     # * train_file: 存放每位用户评论的电影和评分
     # * train_file 是一个嵌套字典
@@ -44,6 +51,6 @@ def get_utility_mat():
             train_data[line[0]] = {line[1]: line[2]}
         else:
             train_data[line[0]][line[1]] = line[2]
-    # * 效应矩阵
+    # * 效用矩阵
     utility_mat = pd.DataFrame(train_data).fillna(0).astype(float)
     return utility_mat

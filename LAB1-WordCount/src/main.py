@@ -8,7 +8,6 @@
 # @Description: LAB1 WordCount 实现
 """
 
-import os
 import time
 from queue import Queue
 
@@ -17,11 +16,6 @@ from reducer import Reducer
 from shuffler import Shuffler
 from combiner import Combiner
 from results import generate_result
-
-# SRC_DIR = os.path.dirname(__file__)  # 代码文件目录
-# BASE_DIR = os.path.dirname(SRC_DIR)  # 项目根目录
-# DATA_DIR = os.path.join(BASE_DIR, 'data')  # 数据文件目录
-# TMP_DIR = os.path.join(BASE_DIR, 'tmp')  # 临时文件目录
 
 MAP_NODE_COUNT = 9  # map 节点个数
 COMBINE_NODE_COUNT = 9  # combine 节点个数
@@ -54,12 +48,12 @@ if __name__ == "__main__":
     mapper.join()
     combiner.join()
     shuffler.join()
-    print("Process done.")
+    # print("Process done.")
 
-    print("Reduce start.")
+    # print("Reduce start.")
     reducer.start()
     reducer.join()
-    print("Reduce done.")
+    # print("Reduce done.")
 
     generate_result()
 

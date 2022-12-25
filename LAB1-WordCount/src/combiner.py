@@ -8,15 +8,9 @@
 # @Description: 实现 combine 功能
 """
 
-import os
-import re
 import time
 import threading
-
-SRC_DIR = os.path.dirname(__file__)  # 代码文件目录
-BASE_DIR = os.path.dirname(SRC_DIR)  # 项目根目录
-DATA_DIR = os.path.join(BASE_DIR, 'data')  # 数据文件目录
-TMP_DIR = os.path.join(BASE_DIR, 'tmp')  # 临时文件目录
+from init import *
 
 # 线程池 (combine)
 combine_thread_pool = []
@@ -90,22 +84,19 @@ class Combiner(threading.Thread):
         self.lock = threading.Lock()
 
     def create_combine(self, idx: int):
-        print("combine thread %d start!" % idx)
+        # print("combine thread %d start!" % idx)
         combine_thread = create_thread(idx)
         combine_thread.start()
         combine_thread.join()
         # * 发送消息，'combineX' 已就绪 (X = 1, 2, ..., 9)
         # self.combine_queue.put('combine' + str(idx))
         self.combine_queue.put(str(idx))
-        print("combine thread %d finish!" % idx)
+        # print("combine thread %d finish!" % idx)
 
     def run(self):
         while self.cur_node_count < self.combine_node_count:
             msg = self.map_queue.get()
-            # map_match = re.findall(r'map(\d+)', msg)
-            # if map_match:
             if msg:
-                # idx = int(map_match[0])
                 idx = int(msg)
                 combine_t = threading.Thread(
                     target=self.create_combine, args=(idx,))
@@ -118,16 +109,3 @@ class Combiner(threading.Thread):
         for i in range(self.combine_node_count):
             self.combine_thread_list[i].join()
         print("combine threads all finish.")
-
-
-if __name__ == "__main__":
-    for i in range(1, 10):
-        combine_thread_pool.append(create_thread(i))
-
-    start_time = time.perf_counter()
-
-    for thread in combine_thread_pool:
-        thread.start()
-
-    for i in range(1, 10):
-        join_thread(i)

@@ -10,9 +10,7 @@
 
 import os
 import time
-import numpy as np
 import pandas as pd
-from threading import Thread
 
 # ? 文件目录设置
 SRC_DIR = os.path.dirname(__file__)  # 代码文件目录
@@ -25,222 +23,218 @@ MIN_SUPPORT_OF_FREQ_ITEMS = 0.005  # 频繁项集最小支持度
 MIN_CONFIDENCE = 0.5  # 关联规则最小置信度
 
 
-def get_dataset() -> list[list]:
-    """生成数据集
+def timer(func):
+    """计时装饰器函数"""
 
-    Returns:
-        list[list]: 以二级列表形式存储的数据
-    """
-    data_set = pd.read_csv(os.path.join(DATA_DIR, 'Groceries.csv'))
-    data_items = data_set['items']
-    # 处理数据
-    array_items = np.array(data_items)
-    res_list = []
-    for item in array_items:
-        item = item.strip('{').strip('}').strip(',')
-        goods = []
-        for good in item:
-            goods.append(good)
-        res_list.append(goods)
-    # 返回二级列表存储的数据
-    return res_list
+    def func_wrapper(*args, **kwargs):
+        from time import time
+        time_start = time()
+        result = func(*args, **kwargs)
+        time_end = time()
+        time_spend = time_end - time_start
+        print('%s cost time: %.3f s' % (func.__name__, time_spend))
+        return result
+
+    return func_wrapper
 
 
-def item_counter_func(items: list[list], Ck: set):
-    item_counter = {}
-    for item in items:
-        for c in Ck:
-            if c.issubset(item):
-                if c not in item_counter:
-                    item_counter[c] = 1
-                else:
-                    item_counter[c] += 1
-    return item_counter
-
-
-def filter_apriori(items: list[list], Ck: set, support_items, items_num: int,
-                   min_support_of_freq_items: float = MIN_SUPPORT_OF_FREQ_ITEMS) -> set:
-    """过滤器（待优化）
+def get_filename(filename: str) -> str:
+    """获取完整文件名
 
     Args:
-        items (list[list]): _description_
-        Ck (set): _description_
-        support_items (_type_): _description_
-        items_num (int): _description_
-        min_support_of_freq_items (float, optional): _description_. Defaults to MIN_SUPPORT_OF_FREQ_ITEMS.
+        filename (str): 文件名
 
     Returns:
-        set: 由 Ck 生成的 Lk
+        str: 包含完整路径的文件名
     """
-    Lk = set()
-    # print("len(items): ", len(items))
-    item_counter = {}
-    for item in items:
-        for c in Ck:
-            if c.issubset(item):
-                if c not in item_counter:
-                    item_counter[c] = 1
-                else:
-                    item_counter[c] += 1
-
-    for c in item_counter:
-        support_of_items = float(item_counter[c]) / items_num
-        if support_of_items >= min_support_of_freq_items:
-            Lk.add(c)
-            support_items[c] = support_of_items
-
-    return Lk
+    return os.path.join(DATA_DIR, filename)
 
 
-def create_C1(items: list[list]) -> set:
-    """生成 C1
+# 生成候选频繁一项集
+@timer
+def generate_c1(data_set: list[list]) -> set:
+    """生成候选频繁一项集
 
     Args:
-        items (list[list]): _description_
+        data_set (list[list]): _description_
 
     Returns:
-        set: _description_
+        set: 频繁一项集
     """
-    C1 = set()
-    for item in items:
-        for good in item:
-            if good not in C1:
-                good_set = frozenset([good])
-                C1.add(good_set)
-    return C1
+    c1 = set()
+    for basket in data_set:
+        for item in basket:
+            # frozenset:冻结集合，可以作为字典的key
+            item = frozenset([item])
+            c1.add(item)
+    return c1
 
 
-def is_k_sub_apriori(tmp_item, Lk: set) -> bool:
+@timer
+def generate_lk(data_set: list[list], ck: set[frozenset], min_support: float = MIN_SUPPORT_OF_FREQ_ITEMS) \
+        -> tuple[set[frozenset], dict[frozenset, float]]:
+    """根据 Ck 生成频繁 k 项集 Lk
+
+    Args:
+        data_set (list[list]): 数据集
+        ck (set[frozenset]): k 阶候选频繁项集
+        min_support (float, optional): 最小支持度. 默认 0.005.
+
+    Returns:
+        tuple[set[frozenset], dict[frozenset, float]]: 频繁 k 项集, 频繁项集支持度
+    """
+    # 字典，记录每个候选频繁项集出现的次数
+    item_set_count = {}
+    # 频繁k项集
+    lk = set()
+    # 记录频繁项集的支持度
+    fre_item_set_sup = {}
+    for basket in data_set:
+        for item_set in ck:
+            if item_set.issubset(basket):
+                # 统计候选频繁项集出现次数
+                if item_set in item_set_count:
+                    item_set_count[item_set] += 1
+                else:
+                    item_set_count[item_set] = 1
+    data_num = len(data_set)
+    for key, value in item_set_count.items():
+        # 计算支持度
+        support = value / data_num
+        if support >= min_support:
+            lk.add(key)
+            fre_item_set_sup[key] = support
+    return lk, fre_item_set_sup
+
+
+def is_k_sub(k_item_set: frozenset, lk: set) -> bool:
     """判断 k 项集是否是 k + 1 项子集
 
     Args:
-        tmp_item (_type_): _description_
-        Lk (set): _description_
+        k_item_set (frozenset): k 项集
+        lk (set): k 阶频繁项集
 
     Returns:
-        bool: _description_
+        bool: k 项集是否是 k + 1 项子集
     """
-    for item in tmp_item:
-        sub_item = tmp_item - frozenset([item])
-        if sub_item not in Lk:
+    for item in k_item_set:
+        sub_item = k_item_set - frozenset([item])
+        if sub_item not in lk:
             return False
     return True
 
 
-def constructor_apriori(Lk: set, k: int, Lk_len: int) -> set:
-    Ck1 = set()
-    list_Lk = list(Lk)
-    list_Lk.sort()
+@timer
+def generate_next_ck(lk: set[frozenset], k: int) -> set[frozenset]:
+    """根据 Lk 构造候选频繁项集 Ck+1
 
-    for i in range(Lk_len):
-        for j in range(i + 1, Lk_len):
-            # 连接策略：如果 Lk 中某两个元素的前 k - 1 个项相同则可以连接
-            item_set1 = list(list_Lk[i])[:k - 1]
-            item_set2 = list(list_Lk[j])[:k - 1]
-            if item_set1 == item_set2:
-                Ck1_tmp_item = list_Lk[i] | list_Lk[j]
-                # 剪枝策略：任何非频繁的 k - 1 项集都不是频繁 k 项集的子集
-                if is_k_sub_apriori(Ck1_tmp_item, Lk):
-                    Ck1.add(Ck1_tmp_item)
+    Args:
+        lk (set[frozenset]): k 阶频繁项集
+        k (int): 频繁项集基数
 
-    return Ck1
+    Returns:
+        set[frozenset]: 频繁候选项集 Ck+1
+    """
+    ck = set()
+    for set1 in lk:
+        for set2 in lk:
+            union_set = set1 | set2
+            # * 剪枝策略和连接策略
+            if len(union_set) == k and is_k_sub(union_set, lk):
+                ck.add(union_set)
+    return ck
 
 
-def create_rule(L1: set, L2: set, L3: set,
-                support_items_L1: dict, support_items_L2: dict, support_items_L3: dict,
-                min_confidence: float = MIN_CONFIDENCE) -> list:
+# 生成符合置信度要求的关联规则
+@timer
+def generate_rules(l3: set[frozenset], sup1: dict[frozenset, float], sup2: dict[frozenset, float],
+                   sup3: dict[frozenset, float], min_confidence: float = MIN_CONFIDENCE):
+    """生成符合置信度要求的关联规则
+
+    Args:
+        l3 (set[frozenset]): 三阶频繁项集
+        sup1 (dict[frozenset, float]): 一阶频繁项集支持度
+        sup2 (dict[frozenset, float]): 二阶频繁项集支持度
+        sup3 (dict[frozenset, float]): 三阶频繁项集支持度
+        min_confidence (float, optional): 最小置信度要求. 默认 0.5.
+
+    Returns:
+        list: 关联规则
+    """
     rule_list = []
-    # 寻找 3 阶项集中的关联规则
-    for item_k3 in L3:
-        for item_k2 in L2:
-            if item_k2.issubset(item_k3):
-                conf = support_items_L3[item_k3] / support_items_L2[item_k2]
-                rule = [item_k2, item_k3 - item_k2, conf]
-                if conf >= min_confidence and rule not in rule_list:
-                    rule_list.append(rule)
-        for item_k1 in L1:
-            if item_k1.issubset(item_k3):
-                conf = support_items_L3[item_k3] / support_items_L1[item_k1]
-                rule = [item_k1, item_k3 - item_k1, conf]
-                if conf >= min_confidence and rule not in rule_list:
-                    rule_list.append(rule)
-
-    # 寻找 2 阶项集中的关联规则
-    for item_k2 in L2:
-        for item_k1 in L1:
-            if item_k1.issubset(item_k2):
-                conf = support_items_L2[item_k2] / support_items_L1[item_k1]
-                rule = [item_k1, item_k2 - item_k1, conf]
-                if conf >= min_confidence and rule not in rule_list:
-                    rule_list.append(rule)
-
+    for fre_item_set in l3:
+        union_sup = sup3[fre_item_set]
+        for k in range(3):
+            tmp = list(fre_item_set)
+            set1 = [tmp[k]]
+            tmp.remove(tmp[k])
+            set2 = tmp
+            conf12 = union_sup / sup1[frozenset(set1)]
+            conf21 = union_sup / sup2[frozenset(set2)]
+            if conf12 >= min_confidence:
+                rule_list.append((set(set1), set(set2), conf12))
+            if conf21 >= min_confidence:
+                rule_list.append((set(set2), set(set1), conf21))
     return rule_list
 
 
-def save_Lk(filename: str, support_items: dict):
-    """保存 Lk
+def save_fre_item_set(filename: str, fre_item_set_sup: dict[frozenset, float]) -> None:
+    """保存频繁项集
 
     Args:
-        filename (str): 保存文件名
-        support_items (dict): _description_
+        filename (str): 文件名
+        fre_item_set_sup (dict[frozenset, float]): 支持度
     """
     f_write = open(os.path.join(RES_DIR, filename), 'w')
     f_write.write('{},\t{}\n'.format('frequent-itemSets', 'support'))
+    for k, v in fre_item_set_sup.items():
+        f_write.write("{},\t{}\n".format(set(k), v))
+    # f_write.write("total: {}".format(len(fre_item_set_sup)))
+    print("{} done.".format(filename))
 
-    for si in support_items:
-        f_write.write('{},\t{}\n'.format(list(si), support_items[si]))
-    f_write.write('total: {}'.format(len(support_items)))
-    print("{} Done.".format(filename))
 
-
-def save_rule(filename: str, rule_list: list):
+def save_rules(filename: str, rule_list: list) -> None:
     """保存关联规则
 
     Args:
-        filename (str): 保存文件名
-        rule_list (list): 关联规则列表
+        filename (str): 文件名
+        rule_list (list): 关联规则
     """
     f_write = open(os.path.join(RES_DIR, filename), 'w')
-    f_write.write('----------------rule----------------\n')
     for rule in rule_list:
-        f_write.write('{} ==> {}: {}\n'.format(
-            list(rule[0]), list(rule[1]), rule[2]
-        ))
-    f_write.write('total: {}'.format(len(rule_list)))
-    print("All done.")
+        f_write.write("{} => {}, {}\n".format(rule[0], rule[1], rule[2]))
 
 
-if __name__ == "__main__":
-    start_time = time.time()
+if __name__ == '__main__':
+    start = time.time()
+    # ? 数据读取
+    dataset = []
+    data = pd.read_csv(get_filename('Groceries.csv'), header=0)
+    for _, row in data.iterrows():
+        row_data = row['items'].replace("{", "")
+        row_data = row_data.replace("}", "")
+        row_data = list(row_data.split(","))
+        dataset.append(row_data)
 
-    # 获取和处理数据
-    items = get_dataset()
-    # print(items)
-    items_len = len(items)
+    # ? 生成频繁项集
+    C1 = generate_c1(dataset)
+    L1, fre_item_set_sup1 = generate_lk(dataset, C1)
+    C2 = generate_next_ck(L1, 2)
+    L2, fre_item_set_sup2 = generate_lk(dataset, C2)
+    C3 = generate_next_ck(L2, 3)
+    L3, fre_item_set_sup3 = generate_lk(dataset, C3)
+    rules_list = generate_rules(
+        L3, fre_item_set_sup1, fre_item_set_sup2, fre_item_set_sup3)
+    end = time.time()
 
-    support_items_L1 = {}
-    support_items_L2 = {}
-    support_items_L3 = {}
+    # ? 保存结果
+    save_fre_item_set("L1.csv", fre_item_set_sup1)
+    save_fre_item_set("L2.csv", fre_item_set_sup2)
+    save_fre_item_set("L3.csv", fre_item_set_sup3)
+    save_rules("rule", rules_list)
 
-    # 创建 C1 和 L1
-    C1 = create_C1(items)
-    L1 = filter_apriori(items, C1, support_items_L1, items_len)
-    save_Lk('L1', support_items_L1)
-
-    # 创建 C2 和 L2
-    C2 = constructor_apriori(L1, 1, len(L1))
-    L2 = filter_apriori(items, C2, support_items_L2, items_len)
-    save_Lk('L2', support_items_L2)
-
-    # 创建 C3 和 L3
-    C3 = constructor_apriori(L2, 2, len(L2))
-    L3 = filter_apriori(items, C3, support_items_L3, items_len)
-    save_Lk('L3', support_items_L3)
-
-    # 生成关联规则
-    rule_list = create_rule(L1, L2, L3, support_items_L1,
-                            support_items_L2, support_items_L3)
-    save_rule('rule', rule_list)
-
-    finish_time = time.time()
-    print("total_time: {} s.".format(finish_time - start_time))
+    print("1阶频繁项集个数为:", len(L1))
+    print("2阶频繁项集个数为:", len(L2))
+    print("3阶频繁项集个数为:", len(L3))
+    print("关联规则个数为:", len(rules_list))
+    print("用时:", end - start, 's')

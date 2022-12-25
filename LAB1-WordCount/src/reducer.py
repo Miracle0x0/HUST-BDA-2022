@@ -12,11 +12,8 @@ import os
 import re
 import threading
 import time
+from init import *
 
-SRC_DIR = os.path.dirname(__file__)  # 代码文件目录
-BASE_DIR = os.path.dirname(SRC_DIR)  # 项目根目录
-DATA_DIR = os.path.join(BASE_DIR, 'data')  # 数据文件目录
-TMP_DIR = os.path.join(BASE_DIR, 'tmp')  # 临时文件目录
 REDUCE_NODE_COUNT = 3  # reduce 节点个数
 
 # 线程池 (reduce)
@@ -90,11 +87,11 @@ class Reducer(threading.Thread):
         self.lock = threading.Lock()
 
     def create_reduce(self, idx: int):
-        print("reduce thread %d start!" % idx)
+        # print("reduce thread %d start!" % idx)
         reduce_thread = create_thread(idx)
         reduce_thread.start()
         reduce_thread.join()
-        print("reduce thread %d finish!" % idx)
+        # print("reduce thread %d finish!" % idx)
 
     def run(self):
         while self.cur_node_count < self.reduce_node_count:
@@ -110,16 +107,3 @@ class Reducer(threading.Thread):
         for i in range(self.reduce_node_count):
             self.reduce_thread_list[i].join()
         print("reduce threads all finish.")
-
-
-if __name__ == "__main__":
-    for i in range(1, REDUCE_NODE_COUNT + 1):
-        reduce_thread_pool.append(create_thread(i))
-
-    start_time = time.perf_counter()
-
-    for thread in reduce_thread_pool:
-        thread.start()
-
-    for i in range(1, REDUCE_NODE_COUNT + 1):
-        join_thread(i)
